@@ -2,7 +2,7 @@
  * HTTP methods used in the API requests.
  * @typedef {('GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH')} HttpMethod
  */
-type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
 
 /**
  * Options for customizing a fetch request.
@@ -17,11 +17,11 @@ type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
  * @property {Record<string, string>} [params] - URL parameters to be appended to the endpoint.
  */
 interface FetchOptions<TRequestBody>
-    extends Omit<RequestInit, "body" | "method"> {
-    method?: HttpMethod;
-    headers?: Record<string, string>;
-    body?: TRequestBody;
-    params?: Record<string, string>;
+  extends Omit<RequestInit, 'body' | 'method'> {
+  method?: HttpMethod
+  headers?: Record<string, string>
+  body?: TRequestBody
+  params?: Record<string, string>
 }
 
 /**
@@ -32,8 +32,8 @@ interface FetchOptions<TRequestBody>
  * @property {Record<string, string>} [defaultHeaders] - Default headers to include in every request (e.g., Content-Type).
  */
 interface FetchConfig {
-    apiUrl: string;
-    defaultHeaders?: Record<string, string>;
+  apiUrl: string
+  defaultHeaders?: Record<string, string>
 }
 
 /**
@@ -51,21 +51,21 @@ interface FetchConfig {
  * @param {string} statusText - The status text from the response.
  */
 export class HttpError<T> extends Error {
-    public statusCode: number;
-    public responseBody: T;
-    public statusText: string;
+  public statusCode: number
+  public responseBody: T
+  public statusText: string
 
-    constructor(
-        public response: Response,
-        responseBody: T,
-        statusText: string,
-    ) {
-        super(`HTTP error! status: ${response.status}`);
-        this.name = "HttpError";
-        this.statusCode = response.status;
-        this.responseBody = responseBody;
-        this.statusText = statusText;
-    }
+  constructor(
+    public response: Response,
+    responseBody: T,
+    statusText: string
+  ) {
+    super(`HTTP error! status: ${response.status}`)
+    this.name = 'HttpError'
+    this.statusCode = response.status
+    this.responseBody = responseBody
+    this.statusText = statusText
+  }
 }
 
 /**
@@ -79,76 +79,78 @@ export class HttpError<T> extends Error {
  * @template TRequestBody - The type of the request body (default is `unknown`).
  */
 export const createFetchUtil = (config: FetchConfig) => {
-    const { apiUrl, defaultHeaders = {} } = config;
+  const { apiUrl, defaultHeaders = {} } = config
 
-    /**
-     * A helper function to make HTTP requests.
-     *
-     * @param {string} endpoint - The API endpoint to send the request to.
-     * @param {FetchOptions<TRequestBody>} [options] - Additional options like method, headers, body, etc.
-     * @returns {Promise<TResponse>} - A promise that resolves with the response body parsed as `TResponse`.
-     */
-    return async function fetchUtil<TResponse, TRequestBody = unknown>(
-        endpoint: string,
-        options: FetchOptions<TRequestBody> = {},
-    ): Promise<TResponse> {
-        const {
-            method = "GET",
-            headers = {},
-            body,
-            params,
-            ...restOptions
-        } = options;
+  /**
+   * A helper function to make HTTP requests.
+   *
+   * @param {string} endpoint - The API endpoint to send the request to.
+   * @param {FetchOptions<TRequestBody>} [options] - Additional options like method, headers, body, etc.
+   * @returns {Promise<TResponse>} - A promise that resolves with the response body parsed as `TResponse`.
+   */
+  return async function fetchUtil<TResponse, TRequestBody = unknown>(
+    endpoint: string,
+    options: FetchOptions<TRequestBody> = {}
+  ): Promise<TResponse> {
+    const {
+      method = 'GET',
+      headers = {},
+      body,
+      params,
+      ...restOptions
+    } = options
 
-        const normalizedApiUrl = apiUrl.endsWith("/") ? apiUrl : `${apiUrl}/`;
-        const normalizedEndpoint = endpoint.startsWith("/")
-            ? endpoint.slice(1)
-            : endpoint;
+    const normalizedApiUrl = apiUrl.endsWith('/') ? apiUrl : `${apiUrl}/`
+    const normalizedEndpoint = endpoint.startsWith('/')
+      ? endpoint.slice(1)
+      : endpoint
 
-        const url = new URL(normalizedEndpoint, normalizedApiUrl);
+    const url = new URL(normalizedEndpoint, normalizedApiUrl)
 
-        console.log(`${method} request to URL: ${url.toString()}`);
+    console.log(`${method} request to URL: ${url.toString()}`)
 
-        if (params) {
-            Object.entries(params).forEach(([key, value]) => {
-                url.searchParams.append(key, value);
-                console.log(`${method} request to URL: ${url.toString()}`);
-            });
-        }
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        url.searchParams.append(key, value)
+        console.log(`${method} request to URL: ${url.toString()}`)
+      })
+    }
 
-        const mergedHeaders = {
-            "Content-Type": "application/json",
-            ...defaultHeaders,
-            ...headers,
-        };
+    const isFormData =
+      typeof FormData !== 'undefined' && body instanceof FormData
+    const mergedHeaders = {
+      ...defaultHeaders,
+      ...headers,
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    }
 
-        const fetchOptions: RequestInit = {
-            method,
-            headers: mergedHeaders,
-            ...restOptions,
-        };
+    const fetchOptions: RequestInit = {
+      method,
+      headers: mergedHeaders,
+      ...restOptions,
+    }
 
-        if (body) {
-            fetchOptions.body = JSON.stringify(body);
-        }
+    if (body) {
+      fetchOptions.body = isFormData ? body : JSON.stringify(body)
+    }
 
-        const response = await fetch(url.toString(), fetchOptions);
+    const response = await fetch(url.toString(), fetchOptions)
 
-        let responseBody;
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-            responseBody = await response.json();
-        } else {
-            responseBody = await response.text();
-        }
+    let responseBody
+    const contentType = response.headers.get('content-type')
+    if (contentType && contentType.includes('application/json')) {
+      responseBody = await response.json()
+    } else {
+      responseBody = await response.text()
+    }
 
-        if (!response.ok) {
-            throw new HttpError(response, responseBody, response.statusText);
-        }
+    if (!response.ok) {
+      throw new HttpError(response, responseBody, response.statusText)
+    }
 
-        return responseBody as TResponse;
-    };
-};
+    return responseBody as TResponse
+  }
+}
 
 /**
  * Creates an authorization header for API requests.
@@ -158,5 +160,5 @@ export const createFetchUtil = (config: FetchConfig) => {
  * @returns {Record<string, string>} - An object with the `Authorization` header set to `Bearer ${token}`.
  */
 export const withAuth = (token: string): Record<string, string> => ({
-    Authorization: `Bearer ${token}`,
-});
+  Authorization: `Bearer ${token}`,
+})
